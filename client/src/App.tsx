@@ -10,7 +10,9 @@ import Appointments from "@/pages/appointments";
 import Staff from "@/pages/staff";
 import Clients from "@/pages/clients";
 import Settings from "@/pages/settings";
-import { useAuth } from "./context/auth-context";
+import { useAuth, AuthProvider } from "./context/auth-context";
+import { ThemeProvider } from "./context/theme-context";
+import { CalendarProvider } from "./context/calendar-context";
 import { Loader2 } from "lucide-react";
 
 function PrivateRoute({ component: Component, ...rest }: { component: React.ComponentType<any>; path: string }) {
@@ -37,7 +39,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/" component={Dashboard} />
+      <Route path="/">
+        {(params) => <PrivateRoute component={Dashboard} path="/" />}
+      </Route>
       <Route path="/calendar">
         {(params) => <PrivateRoute component={Calendar} path="/calendar" />}
       </Route>
@@ -61,10 +65,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <CalendarProvider>
+          <QueryClientProvider client={queryClient}>
+            <Router />
+            <Toaster />
+          </QueryClientProvider>
+        </CalendarProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

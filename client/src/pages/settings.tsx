@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  Google, 
+  Globe, 
   Mail, 
   Smartphone, 
   Lock, 
@@ -39,7 +39,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { SiMicrosoftoutlook, SiApple } from "react-icons/si";
+import { SiApple } from "react-icons/si";
+import { PiMicrosoftOutlookLogoFill } from "react-icons/pi";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -309,10 +310,10 @@ export default function Settings() {
                             <div key={integration.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                               <div className="flex items-center space-x-3">
                                 {integration.provider === "google" && (
-                                  <Google className="h-6 w-6 text-red-500" />
+                                  <Globe className="h-6 w-6 text-red-500" />
                                 )}
                                 {integration.provider === "outlook" && (
-                                  <SiMicrosoftoutlook className="h-6 w-6 text-blue-500" />
+                                  <PiMicrosoftOutlookLogoFill className="h-6 w-6 text-blue-500" />
                                 )}
                                 {integration.provider === "apple" && (
                                   <SiApple className="h-6 w-6 text-gray-800 dark:text-gray-200" />
@@ -360,7 +361,7 @@ export default function Settings() {
                           className="h-auto py-6 flex flex-col items-center"
                           onClick={handleConnectGoogle}
                         >
-                          <Google className="h-8 w-8 text-red-500 mb-2" />
+                          <Globe className="h-8 w-8 text-red-500 mb-2" />
                           <span>Google Calendar</span>
                         </Button>
                         
@@ -369,7 +370,7 @@ export default function Settings() {
                           className="h-auto py-6 flex flex-col items-center"
                           onClick={handleConnectOutlook}
                         >
-                          <SiMicrosoftoutlook className="h-8 w-8 text-blue-500 mb-2" />
+                          <PiMicrosoftOutlookLogoFill className="h-8 w-8 text-blue-500 mb-2" />
                           <span>Outlook Calendar</span>
                         </Button>
                         
