@@ -46,9 +46,10 @@ export function useAiSuggestions() {
   const generateSuggestion = async (date: Date) => {
     setIsLoading(true);
     try {
-      await generateMutation.mutateAsync(date);
+      const result = await generateMutation.mutateAsync(date);
+      return result;
     } catch (error) {
-      console.error("Failed to generate AI suggestion:", error);
+      // Silent fail, errors are handled by the caller
     } finally {
       setIsLoading(false);
     }

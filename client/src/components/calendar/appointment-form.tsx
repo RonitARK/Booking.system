@@ -61,6 +61,7 @@ export default function AppointmentForm({
   const { generateSuggestion, aiSuggestion } = useAiSuggestions();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Ensure default values are not null or undefined to satisfy the form control types
   const defaultValues: Partial<AppointmentFormValues> = {
     title: "",
     location: "",
@@ -101,9 +102,13 @@ export default function AppointmentForm({
   // Request AI suggestion when form opens with an initial date
   useEffect(() => {
     if (isOpen && initialDate && !appointmentToEdit) {
-      generateSuggestion(initialDate);
+      try {
+        generateSuggestion(initialDate);
+      } catch (error) {
+        console.error("Error generating suggestion:", error);
+      }
     }
-  }, [isOpen, initialDate]);
+  }, [isOpen, initialDate, appointmentToEdit, generateSuggestion]);
   
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
@@ -152,15 +157,36 @@ export default function AppointmentForm({
   };
   
   const applyAiSuggestion = () => {
-    if (aiSuggestion && aiSuggestion.recommended_slots && aiSuggestion.recommended_slots.length > 0) {
-      const suggestion = aiSuggestion.recommended_slots[0];
-      
-      form.setValue('startTime', suggestion.startTime.slice(0, 16));
-      form.setValue('endTime', suggestion.endTime.slice(0, 16));
-      
+    try {
+      if (aiSuggestion && 
+          aiSuggestion.recommended_slots && 
+          Array.isArray(aiSuggestion.recommended_slots) && 
+          aiSuggestion.recommended_slots.length > 0 &&
+          aiSuggestion.recommended_slots[0] && 
+          aiSuggestion.recommended_slots[0].startTime &&
+          aiSuggestion.recommended_slots[0].endTime) {
+            
+        const suggestion = aiSuggestion.recommended_slots[0];
+        
+        // Make sure we can slice the time strings
+        const startTime = typeof suggestion.startTime === 'string' ? suggestion.startTime.slice(0, 16) : '';
+        const endTime = typeof suggestion.endTime === 'string' ? suggestion.endTime.slice(0, 16) : '';
+        
+        if (startTime && endTime) {
+          form.setValue('startTime', startTime);
+          form.setValue('endTime', endTime);
+          
+          toast({
+            title: "AI suggestion applied",
+            description: suggestion.reason || "Optimal time slot based on your schedule"
+          });
+        }
+      }
+    } catch (error) {
       toast({
-        title: "AI suggestion applied",
-        description: suggestion.reason
+        title: "Error",
+        description: "Could not apply AI suggestion. Please try again.",
+        variant: "destructive"
       });
     }
   };
@@ -276,29 +302,45 @@ export default function AppointmentForm({
             <FormField
               control={form.control}
               name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Meeting location" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                // Make sure value is always a string
+                const safeValue = typeof field.value === 'string' ? field.value : '';
+                return (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Meeting location" 
+                        {...field}
+                        value={safeValue}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             
             <FormField
               control={form.control}
               name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Additional details" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                // Make sure value is always a string
+                const safeValue = typeof field.value === 'string' ? field.value : '';
+                return (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Additional details" 
+                        {...field}
+                        value={safeValue}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             
             <FormField
@@ -322,7 +364,13 @@ export default function AppointmentForm({
               )}
             />
             
-            {aiSuggestion && aiSuggestion.recommended_slots && aiSuggestion.recommended_slots.length > 0 && (
+            {/* Only show AI suggestion if valid data exists */}
+            {aiSuggestion && 
+             aiSuggestion.recommended_slots && 
+             Array.isArray(aiSuggestion.recommended_slots) && 
+             aiSuggestion.recommended_slots.length > 0 && 
+             aiSuggestion.recommended_slots[0] && 
+             aiSuggestion.recommended_slots[0].startTime && (
               <div className="flex items-center space-x-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-dashed border-orange-500 rounded-lg">
                 <LightbulbIcon className="w-5 h-5 text-orange-500" />
                 <div className="flex-1">
@@ -330,7 +378,7 @@ export default function AppointmentForm({
                     AI suggests: {new Date(aiSuggestion.recommended_slots[0].startTime).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})}
                   </span>
                   <p className="text-xs text-gray-600 dark:text-gray-300">
-                    {aiSuggestion.recommended_slots[0].reason}
+                    {aiSuggestion.recommended_slots[0].reason || "Optimal time slot based on your schedule"}
                   </p>
                 </div>
                 <Button 
