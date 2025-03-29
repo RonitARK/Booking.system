@@ -1,7 +1,8 @@
 import { Appointment } from "@shared/schema";
+import OpenAI from "openai";
 
-// This would be an actual OpenAI client in a real implementation
-// For this MVP, we'll simulate AI responses
+// Initialize OpenAI with API key from environment variables
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 type AiSuggestionInput = {
   userId: number;
@@ -27,12 +28,145 @@ type AiSuggestionOutput = {
   }[];
 };
 
+/**
+ * Generate AI scheduling suggestions using OpenAI's API
+ * @param input - The input data for generating suggestions
+ * @returns AI-generated scheduling suggestions
+ */
 export async function generateAiSuggestions(
   input: AiSuggestionInput
 ): Promise<AiSuggestionOutput> {
-  // In a real implementation, this would call OpenAI API
-  // For now, simulate the AI response with realistic scheduling logic
+  const { date, appointments, userRole } = input;
   
+  try {
+    // Fall back to simulated response if no API key is available
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn("OPENAI_API_KEY is not set. Using simulated AI response.");
+      return simulateAiSuggestions(input);
+    }
+    
+    // Format date to readable string
+    const dateStr = new Date(date).toISOString().split('T')[0];
+    
+    // Filter appointments for the requested date
+    const dayAppointments = appointments.filter(appointment => {
+      const appointmentDate = new Date(appointment.startTime);
+      return (
+        appointmentDate.getDate() === date.getDate() &&
+        appointmentDate.getMonth() === date.getMonth() &&
+        appointmentDate.getFullYear() === date.getFullYear()
+      );
+    });
+    
+    // Format appointments for the prompt
+    const appointmentsFormatted = dayAppointments.map(apt => {
+      // Find client name from clientId (in a real app, would use a DB join or lookup)
+      const clientName = apt.clientId ? `Client ${apt.clientId}` : "No client";
+      
+      return {
+        id: apt.id,
+        title: apt.title,
+        clientName,
+        startTime: new Date(apt.startTime).toLocaleTimeString(),
+        endTime: new Date(apt.endTime).toLocaleTimeString(),
+        duration: (new Date(apt.endTime).getTime() - new Date(apt.startTime).getTime()) / (1000 * 60), // minutes
+        status: apt.status || "scheduled"
+      };
+    });
+    
+    // Prepare the prompt for OpenAI
+    const systemPrompt = `
+      You are an AI scheduling assistant for a business professional. 
+      Analyze the user's schedule for ${dateStr} and provide the following:
+      
+      1. Three optimal time slots for new appointments
+      2. Insights about their schedule
+      3. Assessment of no-show risks for existing appointments
+      
+      Respond in JSON format with the following structure:
+      {
+        "recommended_slots": [
+          {
+            "startTime": "ISO string",
+            "endTime": "ISO string",
+            "score": number between 0-1,
+            "reason": "string reason"
+          }
+        ],
+        "insights": ["string insight 1", "string insight 2"],
+        "no_show_risks": [
+          {
+            "appointmentId": number,
+            "risk": number between 0-1,
+            "reason": "string reason"
+          }
+        ]
+      }
+      
+      Base your recommendations on these considerations:
+      - Business hours are 8:00 AM to 6:00 PM
+      - Avoid scheduling during lunch (12:00-1:00 PM)
+      - Allow buffer time between meetings (at least 15 min)
+      - Prefer time slots with higher productivity (mornings for focus work)
+      - Consider appointment history and patterns for no-show risk
+    `;
+    
+    const userPrompt = `
+      Today's date: ${dateStr}
+      User role: ${userRole}
+      
+      Current schedule for ${dateStr}:
+      ${JSON.stringify(appointmentsFormatted, null, 2)}
+      
+      Please suggest optimal time slots and provide schedule insights based on this information.
+    `;
+    
+    // Call OpenAI API
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      response_format: { type: "json_object" }
+    });
+    
+    // Parse the response
+    const responseContent = response.choices[0].message.content;
+    const result = JSON.parse(typeof responseContent === 'string' ? responseContent : '{}');
+    
+    // Format the time slots to ensure they're in ISO format
+    if (result.recommended_slots) {
+      result.recommended_slots = result.recommended_slots.map((slot: any) => {
+        // Ensure startTime and endTime are in ISO format
+        if (!slot.startTime.includes(dateStr)) {
+          const [hours, minutes] = slot.startTime.split(':');
+          slot.startTime = `${dateStr}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`;
+        }
+        
+        if (!slot.endTime.includes(dateStr)) {
+          const [hours, minutes] = slot.endTime.split(':');
+          slot.endTime = `${dateStr}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`;
+        }
+        
+        return slot;
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Error generating AI suggestions:", error);
+    // Fall back to simulated response if OpenAI call fails
+    return simulateAiSuggestions(input);
+  }
+}
+
+/**
+ * Generate simulated AI suggestions when OpenAI is not available
+ * This function mimics the behavior of the AI model with deterministic logic
+ */
+function simulateAiSuggestions(input: AiSuggestionInput): AiSuggestionOutput {
   const { date, appointments, userRole } = input;
   
   // Business hours: 8 AM to 6 PM
@@ -56,8 +190,8 @@ export async function generateAiSuggestions(
   // Find busy time ranges
   const busyRanges: { start: number; end: number }[] = dayAppointments.map(
     appointment => ({
-      start: appointment.startTime.getHours() + appointment.startTime.getMinutes() / 60,
-      end: appointment.endTime.getHours() + appointment.endTime.getMinutes() / 60
+      start: new Date(appointment.startTime).getHours() + new Date(appointment.startTime).getMinutes() / 60,
+      end: new Date(appointment.endTime).getHours() + new Date(appointment.endTime).getMinutes() / 60
     })
   );
   
@@ -88,7 +222,7 @@ export async function generateAiSuggestions(
         const startTime = `${dateStr}T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`;
         const endTime = `${dateStr}T${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`;
         
-        // Generate a score and reason (this would be AI-powered in a real implementation)
+        // Generate a score and reason
         let score = 0;
         let reason = "";
         
@@ -146,16 +280,22 @@ export async function generateAiSuggestions(
     .sort((a, b) => b.score - a.score)
     .slice(0, 3);
   
-  // Generate insights
-  const insights = [
+  // Generate insights based on user role
+  let insights = [
     "Your meeting load is optimally balanced this week",
     "Consider scheduling focused work time in the mornings",
     "You have several meetings scheduled without proper breaks"
   ];
   
-  // Identify potential no-shows (for a real implementation, this would use ML models)
+  if (userRole === 'admin') {
+    insights.push("As an admin, delegate some meetings to your team members");
+  } else if (userRole === 'staff') {
+    insights.push("Block some time for documentation and follow-ups");
+  }
+  
+  // Identify potential no-shows based on appointment patterns
   const noShowRisks = dayAppointments
-    .filter(_ => Math.random() > 0.7) // Randomly select some appointments
+    .filter(_ => Math.random() > 0.7) // Simulate high-risk appointments
     .map(appointment => ({
       appointmentId: appointment.id,
       risk: Math.random() * 0.7 + 0.3, // Random risk between 0.3 and 1

@@ -46,18 +46,26 @@ export default function Login() {
     },
   });
 
+  // Function to handle successful login
+  const handleLoginSuccess = (role: string = '') => {
+    const roleDesc = role ? ` as ${role}` : '';
+    toast({
+      title: "Success",
+      description: `Login successful${roleDesc}! Redirecting...`,
+    });
+    
+    // Use setTimeout to allow the toast to be seen
+    setTimeout(() => {
+      // Force a hard refresh by setting window.location to ensure session is loaded
+      window.location.href = "/dashboard";
+    }, 1000);
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
       await login(values.username, values.password);
-      toast({
-        title: "Success",
-        description: "Login successful! Redirecting...",
-      });
-      // Use setTimeout to allow the toast to be seen
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1000);
+      handleLoginSuccess();
     } catch (error: any) {
       console.log("Login form error:", error);
       toast({
@@ -93,14 +101,7 @@ export default function Login() {
       }
       
       await login(username, password);
-      toast({
-        title: "Success",
-        description: `Logged in as ${role}. Redirecting...`,
-      });
-      // Use setTimeout to allow the toast to be seen
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1000);
+      handleLoginSuccess(role);
     } catch (error: any) {
       console.log(`Demo login error (${role}):`, error);
       toast({

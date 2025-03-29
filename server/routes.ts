@@ -20,12 +20,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup session middleware
   app.use(
     session({
-      cookie: { maxAge: 86400000 },
+      cookie: { 
+        maxAge: 86400000, // 24 hours
+        httpOnly: true,
+        secure: false, // Set to true in production with HTTPS
+        sameSite: 'lax'
+      },
       store: new SessionStore({
         checkPeriod: 86400000 // prune expired entries every 24h
       }),
-      resave: false,
-      saveUninitialized: false,
+      resave: true, // Changed to true to ensure session is saved back to store
+      saveUninitialized: true, // Changed to true to create session regardless of changes
       secret: process.env.SESSION_SECRET || "smartbook-ai-secret"
     })
   );
@@ -102,14 +107,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Authentication Routes
   app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: Error | null, user: any, info: { message: string }) => {
       if (err) {
         return next(err);
       }
       if (!user) {
         return res.status(401).json(info);
       }
-      req.logIn(user, (err) => {
+      req.logIn(user, (err: Error | null) => {
         if (err) {
           return next(err);
         }
