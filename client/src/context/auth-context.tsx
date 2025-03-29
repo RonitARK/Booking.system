@@ -63,14 +63,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     
     try {
-      const response = await apiRequest("POST", "/api/auth/login", { username, password });
+      // Use fetch directly instead of apiRequest for better error handling
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+        credentials: "include"
+      });
       
+      // Get the response data
+      const data = await response.json();
+      
+      // If login failed
       if (!response.ok) {
-        throw new Error("Invalid credentials");
+        console.error("Login failed:", data);
+        throw new Error(data.message || "Invalid credentials");
       }
       
-      const userData = await response.json();
-      setUser(userData);
+      // Login successful
+      setUser(data);
       setIsAuthenticated(true);
     } catch (error) {
       console.error("Login error:", error);

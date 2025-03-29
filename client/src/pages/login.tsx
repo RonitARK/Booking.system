@@ -50,11 +50,19 @@ export default function Login() {
     setIsLoading(true);
     try {
       await login(values.username, values.password);
-      window.location.href = "/";
-    } catch (error) {
+      toast({
+        title: "Success",
+        description: "Login successful! Redirecting...",
+      });
+      // Use setTimeout to allow the toast to be seen
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1000);
+    } catch (error: any) {
+      console.log("Login form error:", error);
       toast({
         title: "Error",
-        description: "Invalid username or password. Please try again.",
+        description: error.message || "Invalid username or password. Please try again.",
         variant: "destructive",
       });
       setIsLoading(false);
@@ -85,11 +93,19 @@ export default function Login() {
       }
       
       await login(username, password);
-      window.location.href = "/";
-    } catch (error) {
+      toast({
+        title: "Success",
+        description: `Logged in as ${role}. Redirecting...`,
+      });
+      // Use setTimeout to allow the toast to be seen
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1000);
+    } catch (error: any) {
+      console.log(`Demo login error (${role}):`, error);
       toast({
         title: "Error",
-        description: "Failed to log in with demo account. Please try again.",
+        description: error.message || `Failed to log in as ${role}. Please try again.`,
         variant: "destructive",
       });
       setIsLoading(false);
